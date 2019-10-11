@@ -11,12 +11,25 @@ using CSV, DataFrames, Dates
 using Clustering
 
 
+is_week_end(date::Dates.DateTime) = Dates.dayofweek(date) in [6, 7]
+day_type(week_end::Bool) = ["week_day", "week_end"][week_end+1]
+date_time_to_quarter(timer::Dates.Time) = Int64(Dates.hour(timer)*4 + Dates.minute(timer)/15 + 1)
+noise_data_df() = DataFrame(timestamp=Dates.Time(0, 0, 0):Dates.Minute(15):Dates.Time(23, 45, 0), 
+        data=[Float64[] for i in 1:96])
+
+function normalize(x::Array{Float64,1}, upper_bound::Float64, lower_bound::Float64) 
+    return (x .- lower_bound) / (upper_bound - lower_bound)
+end
+
+function denormalize(x::Float64, upper_bound, lower_bound)
+    return x*(upper_bound - lower_bound) + lower_bound
+end
+
+
 ## Generic data parsing functions
 
 
-is_week_end(date::Dates.Date) = Dates.dayofweek(date) in [6, 7]
-
-function compute_offline_law(path_to_data_csv::String; k=10)
+function net_demand_offline_law(path_to_data_csv::String; k::Int64=10)
 
     """
     parse offline data to return a Dict of DataFrame objects with columns
@@ -35,7 +48,7 @@ end
 
 function parse_data_frame(data::DataFrame)
 
-    train_data = Dict("week_day"=>Dict(), "week_end"=>Dict())
+    train_data = Dict("week_day"=>noise_data_df(), "week_end"=>noise_data_df())
 
     for df in eachrow(data)
 
@@ -44,20 +57,14 @@ function parse_data_frame(data::DataFrame)
         day = Dates.Date(date)
         timing = Dates.Time(date)
 
-        net_energy_demand = df[:actual_consumption] - df[:actual_pv] 
+        net_energy_demand = df[:actual_consumption] - df[:actual_pv]
 
         if is_week_end(day)
-            if !(timing in keys(train_data["week_end"]))
-                train_data["week_end"][timing] = [net_energy_demand]
-            else
-                push!(train_data["week_end"][timing], net_energy_demand)
-            end
+            push!(train_data["week_end"][date_time_to_quarter(timing), :data], 
+                net_energy_demand)
         else
-            if !(timing in keys(train_data["week_day"]))
-                train_data["week_day"][timing] = [net_energy_demand]
-            else
-                push!(train_data["week_day"][timing], net_energy_demand)
-            end
+            push!(train_data["week_day"][date_time_to_quarter(timing), :data], 
+                net_energy_demand)
         end
 
     end
@@ -66,47 +73,110 @@ function parse_data_frame(data::DataFrame)
 
 end
 
-function data_to_offline_law(data::Dict{String, Dict{Any, Any}},
-    k::Int64)
+function data_to_offline_law(data::Dict{String, DataFrame};
+    k::Int64=10)
 
-    law_data_frames = Dict("week_day"=>DataFrame(), "week_end"=>DataFrame())
+    offline_law_data_frames = Dict("week_day"=>DataFrame(), "week_end"=>DataFrame())
 
-    for (key, dict) in data
+    for (key, df) in data
 
-        df = DataFrame(timestamp=Dates.Time[], value=Array{Float64,1}[],
+        law_df = DataFrame(timestamp=Dates.Time[], value=Array{Float64,1}[],
             probability=Array{Float64,1}[])
 
         for timestamp in Dates.Time(0, 0, 0):Dates.Minute(15):Dates.Time(23, 45, 0)
 
-            energy_demand = reshape(dict[timestamp], (1, :))
-            n_data = length(energy_demand)
-            k_means = kmeans(energy_demand, k)
+            noise_data = reshape(df[df.timestamp .== timestamp, :data][1], (1, :))
+            n_data = length(noise_data)
+            k_means = kmeans(noise_data, k)
             value = reshape(k_means.centers, :)
             probability = reshape(k_means.counts, :) / n_data
-            push!(df, [timestamp, value, probability])
+            push!(law_df, [timestamp, value, probability])
 
         end
 
-        law_data_frames[key] = df
+        offline_law_data_frames[key] = law_df
 
     end
 
-   return law_data_frames
+   return offline_law_data_frames
 
 end
 
 
-## lags ??
+## lags parsing for forecast models
 
+
+function normalized_net_demand(path_to_data_csv::String)
+
+    data = CSV.read(path_to_data_csv)
+
+    df = data[:, [:timestamp]]
+    net_demand = (data[:actual_consumption] - data[:actual_pv])
+    upper_bound = maximum(net_demand)
+    lower_bound = minimum(net_demand)
+    df[:net_demand] = (net_demand .- lower_bound) / (upper_bound - lower_bound)
+
+    return df, upper_bound, lower_bound
+end
+
+function extract_lags(net_demand::DataFrame, n_lags::Int64)
+
+    lags_df = DataFrame(week_end=Bool[], quarter=Int64[], lags=Array{Float64,1}[], 
+        target=Float64[])
+
+    for df in eachrow(net_demand)
+
+        timestamp = df[:timestamp]
+        target = df[:net_demand]
+        date = timestamp - Dates.Minute(15) # 15 min shift for ahead of stamp data
+        net_demand_lags = Float64[]
+
+        for l in 1:n_lags
+            lag_stamp = timestamp - Dates.Minute(15*l)
+            if lag_stamp in net_demand[:timestamp]
+                lag_value = net_demand[net_demand.timestamp .== lag_stamp, :net_demand][1]
+                push!(net_demand_lags, lag_value) 
+            else break
+            end
+        end
+
+        if length(net_demand_lags) != n_lags
+            continue
+        end
+
+        quarter = date_time_to_quarter(Dates.Time(date))
+        push!(lags_df, [is_week_end(date), quarter, net_demand_lags, target])
+
+    end
+    
+    return lags_df
+
+end
+
+function forecast_error_offline_law(lags_data::DataFrame, apply_forecast::Function)
+
+    error_data_frame = Dict("week_day"=>noise_data_df(), "week_end"=>noise_data_df())
+
+    for df in eachrow(lags_data)
+
+        forecast = apply_forecast(df[:quarter], df[:week_end], df[:lags])
+        forecast_error = df[:target] - forecast
+        push!(error_data_frame[day_type(df[:week_end])][df[:quarter], :data], forecast_error)
+
+    end
+
+    offline_law_data_frames = data_to_offline_law(error_data_frame)
+
+    return offline_law_data_frames
+
+end
 
 ## StoOpt specific data parsing function
 ## enables connecting the generic offline data pipeline
 ## with the StoOpt package
 
 
-function data_frames_to_noises(path_to_data_csv::String)
-
-    offline_law = compute_offline_law(path_to_data_csv)
+function data_frames_to_noises(offline_law::Dict{String,DataFrame})
 
     w_week_day = hcat(offline_law["week_day"][:value]...)'
     pw_week_day = hcat(offline_law["week_day"][:probability]...)'
@@ -120,3 +190,4 @@ function data_frames_to_noises(path_to_data_csv::String)
     return StoOpt.Noises(w, pw)
 
 end
+

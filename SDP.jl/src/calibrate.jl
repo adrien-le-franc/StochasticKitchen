@@ -9,17 +9,17 @@ using JLD
 using ProgressMeter
 
 
-function calibrate_sites(controller::EMSx.AbstractController, 
+function calibrate_sites(controller::EMSx.AbstractController,
 	path_to_save_folder::String, 
 	path_to_price_folder::String, 
 	path_to_metadata_csv_file::String, 
 	path_to_train_data_folder::String)
 	
+	mkdir(joinpath(path_to_save_folder, "value_functions"))	
 	prices = EMSx.load_prices(path_to_price_folder)
-	site_ids = [split(name, ".")[1]*".jld" for name in readdir(path_to_train_data_folder)]
 	sites = EMSx.load_sites(path_to_metadata_csv_file, 
 		path_to_train_data_folder, 
-		[joinpath(path_to_save_folder, id) for id in site_ids])
+		path_to_save_folder)
 
 	elapsed = 0.0
 
@@ -73,7 +73,8 @@ function calibrate_site(controller::EMSx.AbstractController, site::EMSx.Site,
 
 	end
 
-	save(site.path_to_save_jld_file, Dict("value_functions"=>value_functions, "time"=>timer))
+	save(joinpath(site.path_to_save_folder, "value_functions", site.id*".jld"), 
+		Dict("value_functions"=>value_functions, "time"=>timer))
 
 	return nothing
 

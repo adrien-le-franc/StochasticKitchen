@@ -63,45 +63,60 @@ const controller = Sdp(sdp)
 
 function SDP.update_site!(controller::Sdp, site::EMSx.Site)
 	site_pointer.x = site
-	controller.model.noises = SDP.data_frames_to_noises(site.path_to_data_csv)
+    offline_law_data_frames = SDP.net_demand_offline_law(site.path_to_data_csv)
+	controller.model.noises = SDP.data_frames_to_noises(offline_law_data_frames)
 end
 
 function SDP.update_price!(controller::Sdp, price::EMSx.Price)
 	price_pointer.x = price
 end
 
-function SDP.compute_value_functions(sdp::Sdp)
-	return StoOpt.compute_value_functions(sdp.model)
+function SDP.compute_value_functions(controller::Sdp)
+	return StoOpt.compute_value_functions(controller.model)
 end
 
 
-## simulation specific function and pointer
+## simulation specific functions and pointer
 
 
 const value_functions_pointer = Ref(StoOpt.ArrayValueFunctions([0.]))
 
-function EMSx.compute_control(sdp::Sdp, information::EMSx.Information)
+function load_value_functions(site_id::String, price_name::String)
+    return load(joinpath(args["save"],
+                args["model"], 
+                "value_functions", 
+                site_id*".jld"))["value_functions"][price_name]
+end
+
+function EMSx.compute_control(controller::Sdp, information::EMSx.Information)
     
     if information.t == 1
 
         if site_pointer.x.id != information.site_id
-            site_pointer.x = EMSx.Site(information.site_id, information.battery, "", "")
-            controller.model.noises = SDP.data_frames_to_noises(joinpath(args["train"], 
-                information.site_id*".csv"))
-            value_functions_pointer.x = load(joinpath(args["save"], 
-                information.site_id*".jld"))["value_functions"][information.price.name]
+
+            SDP.update_site!(controller, EMSx.Site(information.site_id, 
+                                    information.battery, 
+                                    joinpath(args["train"], information.site_id*".csv"), 
+                                    args["save"]*args["model"]))
+
+            value_functions_pointer.x = load_value_functions(information.site_id, 
+                information.price.name)
+
         end
 
         if price_pointer.x.name != information.price.name
-            price_pointer.x = information.price
-            value_functions_pointer.x = load(joinpath(args["save"], 
-                information.site_id*".jld"))["value_functions"][information.price.name]
+            
+            SDP.update_price!(controller, information.price)
+            
+            value_functions_pointer.x = load_value_functions(information.site_id, 
+                information.price.name)
+
         end
     
     end
 
-    control = compute_control(sdp.model, information.t, [information.soc],
-        StoOpt.RandomVariable(sdp.model.noises, information.t), value_functions_pointer.x)
+    control = compute_control(controller.model, information.t, [information.soc],
+        StoOpt.RandomVariable(controller.model.noises, information.t), value_functions_pointer.x)
 
     return control[1]
 

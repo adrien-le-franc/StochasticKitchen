@@ -15,7 +15,7 @@ include(args["model"]*".jl")
 if args["calibrate"]
 
 	SDP.calibrate_sites(controller, 
-		args["save"],
+		joinpath(args["save"], args["model"]),
 		args["price"],
 		args["metadata"],
 		args["train"])
@@ -24,7 +24,7 @@ end
 if args["simulate"]
 
 	EMSx.simulate_sites(controller, 
-		joinpath(args["save"], args["model"]*".jld"),
+		joinpath(args["save"], args["model"]),
 	    args["price"],
 	    args["metadata"],
 	    args["test"])

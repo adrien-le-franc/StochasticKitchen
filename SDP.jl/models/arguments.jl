@@ -15,7 +15,7 @@ function parse_commandline()
         "--save"
             help = "folder to save scores and/or models"
             arg_type = String
-            default = joinpath(@__DIR__, "../results")
+            default = joinpath(@__DIR__, "results")
 
         "--metadata"
             help = "metadata.csv - site and battery parameters"     
