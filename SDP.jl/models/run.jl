@@ -14,11 +14,30 @@ include(args["model"]*".jl")
 
 if args["calibrate"]
 
-	SDP.calibrate_sites(controller, 
+	if args["workers"] > 1
+
+		using Distributed
+		addprocs(args["workers"])
+		@everywhere using Pkg
+		@everywhere Pkg.activate("../")
+		@everywhere include(args["model"]*".jl")
+
+		SDP.calibrate_sites_parallel(controller, 
+                              joinpath(args["save"], args["model"]),
+                              args["price"],
+                              args["metadata"],
+                              args["train"])
+
+	else
+
+		SDP.calibrate_sites(controller, 
 		joinpath(args["save"], args["model"]),
 		args["price"],
 		args["metadata"],
 		args["train"])
+
+	end
+
 end
 
 if args["simulate"]

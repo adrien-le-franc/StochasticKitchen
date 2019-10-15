@@ -3,12 +3,6 @@
 # functions to calibrate EMS control models
 
 
-using EMSx
-
-using JLD
-using ProgressMeter
-
-
 function calibrate_sites(controller::EMSx.AbstractController,
 	path_to_save_folder::String, 
 	path_to_price_folder::String, 
@@ -52,14 +46,14 @@ function calibrate_sites_parallel(controller::EMSx.AbstractController,
 	@sync begin 
 		for p in workers()
 			@async begin
-
 				while true
 					idx = to_do
 					to_do -= 1
 					if idx <= 0
 						break
 					end
-					_ = remotecall(calibrate_site, p, controller, sites[idx], prices)
+					println("processing job $(idx) / $(length(sites))")
+					_ = remotecall_fetch(calibrate_site, p, controller, sites[idx], prices)
 				end
 			end
 		end
@@ -89,10 +83,3 @@ function calibrate_site(controller::EMSx.AbstractController, site::EMSx.Site,
 	return nothing
 
 end 
-
-### hackable function
-
-function compute_value_functions(controller::EMSx.AbstractController)
-	"""hackable function to compute value functions"""
-	return nothing
-end

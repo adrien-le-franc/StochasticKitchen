@@ -5,12 +5,6 @@
 # https://github.com/adrien-le-franc/StoOpt.jl
 
 
-using StoOpt
-
-using CSV, DataFrames, Dates
-using Clustering
-
-
 is_week_end(date::Union{Dates.Date, Dates.DateTime}) = Dates.dayofweek(date) in [6, 7]
 day_type(week_end::Bool) = ["week_day", "week_end"][week_end+1]
 date_time_to_quarter(timer::Dates.Time) = Int64(Dates.hour(timer)*4 + Dates.minute(timer)/15 + 1)
@@ -171,6 +165,23 @@ function forecast_error_offline_law(lags_data::DataFrame, apply_forecast::Functi
 
 end
 
+function load_or_calibrate_forecast_model(site::EMSx.Site, controller::EMSx.AbstractController, 
+    lags_data::DataFrame)
+
+    path_to_model = joinpath(site.path_to_save_folder, "forecast_model", site.id*".jld")
+
+    if isfile(path_to_model)
+        return load(path_to_model)
+    else
+        forecast_model = calibrate_forecast(controller, lags_data)
+        EMSx.make_directory(joinpath(site.path_to_save_folder, "forecast_model"))
+        save(path_to_model, forecast_model)
+        return forecast_model
+    end
+
+end
+
+
 ## StoOpt specific data parsing function
 ## enables connecting the generic offline data pipeline
 ## with the StoOpt package
@@ -191,3 +202,16 @@ function data_frames_to_noises(offline_law::Dict{String,DataFrame})
 
 end
 
+
+### hackable functions
+
+
+function calibrate_forecast(controller::EMSx.AbstractController, lags_data::DataFrame)
+    """hackable function to calibrate forecast models"""
+    return nothing
+end
+
+function compute_value_functions(controller::EMSx.AbstractController)
+    """hackable function to compute value functions"""
+    return nothing
+end

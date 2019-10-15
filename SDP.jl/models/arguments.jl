@@ -48,7 +48,12 @@ function parse_commandline()
         "--model"
             help = "model for calibration and/or simulation"
             arg_type = String
-            range_tester = in(["sdp", "sdp_ar", "sdp_rf"])  
+            range_tester = in(["sdp", "sdp_ar", "sdp_rf"])
+
+        "--workers"
+            help = "number of workers for parallelized calibration"
+            arg_type = Int64
+            default = 1  
 
     end
 
