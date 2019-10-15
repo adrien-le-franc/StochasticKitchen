@@ -11,7 +11,7 @@ using CSV, DataFrames, Dates
 using Clustering
 
 
-is_week_end(date::Dates.DateTime) = Dates.dayofweek(date) in [6, 7]
+is_week_end(date::Union{Dates.Date, Dates.DateTime}) = Dates.dayofweek(date) in [6, 7]
 day_type(week_end::Bool) = ["week_day", "week_end"][week_end+1]
 date_time_to_quarter(timer::Dates.Time) = Int64(Dates.hour(timer)*4 + Dates.minute(timer)/15 + 1)
 noise_data_df() = DataFrame(timestamp=Dates.Time(0, 0, 0):Dates.Minute(15):Dates.Time(23, 45, 0), 
@@ -40,7 +40,7 @@ function net_demand_offline_law(path_to_data_csv::String; k::Int64=10)
 
     data = CSV.read(path_to_data_csv)
     sorted_data = parse_data_frame(data)
-    offline_law_data_frames = data_to_offline_law(sorted_data, k)
+    offline_law_data_frames = data_to_offline_law(sorted_data, k=k)
 
     return offline_law_data_frames
     

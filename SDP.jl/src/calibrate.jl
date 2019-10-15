@@ -15,7 +15,7 @@ function calibrate_sites(controller::EMSx.AbstractController,
 	path_to_metadata_csv_file::String, 
 	path_to_train_data_folder::String)
 	
-	mkdir(joinpath(path_to_save_folder, "value_functions"))	
+	EMSx.make_directory(joinpath(path_to_save_folder, "value_functions"))
 	prices = EMSx.load_prices(path_to_price_folder)
 	sites = EMSx.load_sites(path_to_metadata_csv_file, 
 		path_to_train_data_folder, 
@@ -35,39 +35,49 @@ function calibrate_sites(controller::EMSx.AbstractController,
 
 end
 
-function update_site!(controller::EMSx.AbstractController, site::EMSx.Site)
-	"""
-	hackable function to update site dependent data and parameters
-	during model calibration
-	"""
-	return nothing
-end
+function calibrate_sites_parallel(controller::EMSx.AbstractController,
+	path_to_save_folder::String, 
+	path_to_price_folder::String, 
+	path_to_metadata_csv_file::String, 
+	path_to_train_data_folder::String)
 
-function update_price!(controller::EMSx.AbstractController, site::EMSx.Price)
-	"""
-	hackable function to update price dependent data and parameters
-	during model calibration
-	"""
-	return nothing
-end
+	EMSx.make_directory(joinpath(path_to_save_folder, "value_functions"))
+	prices = EMSx.load_prices(path_to_price_folder)
+	sites = EMSx.load_sites(path_to_metadata_csv_file, 
+		path_to_train_data_folder, 
+		path_to_save_folder)
 
-function compute_value_functions(controller::EMSx.AbstractController)
-	"""hackable function to compute value functions"""
-	return nothing
+	to_do = length(sites)
+
+	@sync begin 
+		for p in workers()
+			@async begin
+
+				while true
+					idx = to_do
+					to_do -= 1
+					if idx <= 0
+						break
+					end
+					_ = remotecall(calibrate_site, p, controller, sites[idx], prices)
+				end
+			end
+		end
+	end
+
 end
 
 function calibrate_site(controller::EMSx.AbstractController, site::EMSx.Site, 
 	prices::Array{EMSx.Price})
 
-	update_site!(controller, site)
+	controller = EMSx.initialize_site_controller(controller, site)
 	
 	value_functions = Dict{String, Any}()
 	timer = Float64[]
 
 	for price in prices
 
-		update_price!(controller, price)
-
+		EMSx.update_price!(controller, price)
 		timing = @elapsed value_functions[price.name] = compute_value_functions(controller)
 		push!(timer, timing)
 
@@ -79,3 +89,10 @@ function calibrate_site(controller::EMSx.AbstractController, site::EMSx.Site,
 	return nothing
 
 end 
+
+### hackable function
+
+function compute_value_functions(controller::EMSx.AbstractController)
+	"""hackable function to compute value functions"""
+	return nothing
+end
