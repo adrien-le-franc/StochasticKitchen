@@ -168,14 +168,14 @@ end
 function load_or_calibrate_forecast_model(site::EMSx.Site, controller::EMSx.AbstractController, 
     lags_data::DataFrame)
 
-    path_to_model = joinpath(site.path_to_save_folder, "forecast_model", site.id*".jld")
+    path_to_model = joinpath(site.path_to_save_folder, "forecast_model", site.id*".jld2")
 
     if isfile(path_to_model)
-        return load(path_to_model)
+        return load(path_to_model, "forecast_model")
     else
         forecast_model = calibrate_forecast(controller, lags_data)
         EMSx.make_directory(joinpath(site.path_to_save_folder, "forecast_model"))
-        save(path_to_model, forecast_model)
+        save(path_to_model, "forecast_model", forecast_model)
         return forecast_model
     end
 
