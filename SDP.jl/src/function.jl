@@ -105,10 +105,10 @@ function normalized_net_demand(path_to_data_csv::String)
     data = CSV.read(path_to_data_csv)
 
     df = data[:, [:timestamp]]
-    net_demand = (data[:actual_consumption] - data[:actual_pv])
+    net_demand = (data[!, :actual_consumption] - data[!, :actual_pv])
     upper_bound = maximum(net_demand)
     lower_bound = minimum(net_demand)
-    df[:net_demand] = (net_demand .- lower_bound) / (upper_bound - lower_bound)
+    df[!, :net_demand] = (net_demand .- lower_bound) / (upper_bound - lower_bound)
 
     return df, upper_bound, lower_bound
 end
@@ -127,7 +127,7 @@ function extract_lags(net_demand::DataFrame, n_lags::Int64)
 
         for l in 1:n_lags
             lag_stamp = timestamp - Dates.Minute(15*l)
-            if lag_stamp in net_demand[:timestamp]
+            if lag_stamp in net_demand[!, :timestamp]
                 lag_value = net_demand[net_demand.timestamp .== lag_stamp, :net_demand][1]
                 push!(net_demand_lags, lag_value) 
             else break
@@ -189,10 +189,10 @@ end
 
 function data_frames_to_noises(offline_law::Dict{String,DataFrame})
 
-    w_week_day = hcat(offline_law["week_day"][:value]...)'
-    pw_week_day = hcat(offline_law["week_day"][:probability]...)'
-    w_week_end = hcat(offline_law["week_end"][:value]...)'
-    pw_week_end = hcat(offline_law["week_end"][:probability]...)'
+    w_week_day = hcat(offline_law["week_day"][!, :value]...)'
+    pw_week_day = hcat(offline_law["week_day"][!, :probability]...)'
+    w_week_end = hcat(offline_law["week_end"][!, :value]...)'
+    pw_week_end = hcat(offline_law["week_end"][!, :probability]...)'
 
     # one-week-long stochastic process
     w = vcat([w_week_day for i in 1:5]..., [w_week_end for i in 1:2]...)

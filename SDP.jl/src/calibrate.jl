@@ -52,7 +52,7 @@ function calibrate_sites_parallel(controller::EMSx.AbstractController,
 					if idx <= 0
 						break
 					end
-					println("processing job $(idx) / $(length(sites))")
+					println("processing a new job - jobs left: $(idx) / $(length(sites))")
 					_ = remotecall_fetch(calibrate_site, p, controller, sites[idx], prices)
 				end
 			end

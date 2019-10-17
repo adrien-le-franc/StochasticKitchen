@@ -36,7 +36,7 @@ const controller = SdpAR()
 const dx = 0.1
 const du = 0.1
 const horizon = 672
-const n_lags = 1
+const n_lags = args["n_lags"]
 
 function EMSx.initialize_site_controller(controller::SdpAR, site::EMSx.Site)
 
@@ -123,8 +123,8 @@ function SDP.calibrate_forecast(controller::SdpAR, lags_data::DataFrame)
                 (lags_data.week_end .== week_end)), :]
 
             n_data = size(data, 1)
-            observed = hcat(collect(hcat(data[:lags]...)'), ones(n_data))
-            targets = data[:target]
+            observed = hcat(collect(hcat(data[!, :lags]...)'), ones(n_data))
+            targets = data[!, :target]
             weights = pinv(observed'*observed)*observed'*targets
 
             append!(model_weights, weights)

@@ -36,7 +36,7 @@ const controller = SdpRF()
 const dx = 0.1
 const du = 0.1
 const horizon = 672
-const n_lags = 1
+const n_lags = args["n_lags"]
 
 function EMSx.initialize_site_controller(controller::SdpRF, site::EMSx.Site)
 

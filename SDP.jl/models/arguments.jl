@@ -50,6 +50,11 @@ function parse_commandline()
             arg_type = String
             range_tester = in(["sdp", "sdp_ar", "sdp_rf"])
 
+        "--n_lags"
+            help = "number of lags if using a forecast model"
+            arg_type = Int64
+            default = 0
+
         "--workers"
             help = "number of workers for parallelized calibration"
             arg_type = Int64
