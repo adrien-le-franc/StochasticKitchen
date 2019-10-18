@@ -77,7 +77,7 @@ function calibrate_site(controller::EMSx.AbstractController, site::EMSx.Site,
 
 	end
 
-	save(joinpath(site.path_to_save_folder, "value_functions", site.id*".jld"), 
+	save(joinpath(site.path_to_save_folder, "value_functions", site.id*".jld2"), 
 		Dict("value_functions"=>value_functions, "time"=>timer))
 
 	return nothing

@@ -16,7 +16,7 @@ using StoOpt
 
 using DecisionTree
 using DataFrames
-using JLD
+using FileIO
 
 
 mutable struct SdpRF <: EMSx.AbstractController
@@ -132,7 +132,7 @@ function load_value_functions(site_id::String, price_name::String)
     return load(joinpath(args["save"],
                 args["model"], 
                 "value_functions", 
-                site_id*".jld"))["value_functions"][price_name]
+                site_id*".jld2"))["value_functions"][price_name]
 end
 
 function EMSx.compute_control(controller::SdpRF, information::EMSx.Information)
