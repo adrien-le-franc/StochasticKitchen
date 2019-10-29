@@ -43,7 +43,7 @@ function EMSx.initialize_site_controller(controller::SdpRF, site::EMSx.Site)
     controller = SdpRF()
 
     # forecast model 
-    net_demand, upper_bound, lower_bound = SDP.normalized_net_demand(site.path_to_data_csv)
+    net_demand, upper_bound, lower_bound = SDP.normalized_net_demand(site.path_to_train_data_csv)
     lags_data = SDP.extract_lags(net_demand, n_lags)
     forecast_model = SDP.load_or_calibrate_forecast_model(site, controller, lags_data)
 

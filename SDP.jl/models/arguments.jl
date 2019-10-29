@@ -53,7 +53,7 @@ function parse_commandline()
         "--n_lags"
             help = "number of lags if using a forecast model"
             arg_type = Int64
-            default = 0
+            default = 1
 
         "--workers"
             help = "number of workers for parallelized calibration"

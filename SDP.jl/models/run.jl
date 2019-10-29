@@ -52,6 +52,7 @@ if args["simulate"]
 		joinpath(args["save"], args["model"]),
 	    args["price"],
 	    args["metadata"],
-	    args["test"])
+	    args["test"],
+	    args["train"])
 
 end

@@ -36,7 +36,7 @@ function EMSx.initialize_site_controller(controller::Sdp, site::EMSx.Site)
 
     controller = Sdp()
 
-    offline_law_data_frames = SDP.net_demand_offline_law(site.path_to_data_csv)
+    offline_law_data_frames = SDP.net_demand_offline_law(site.path_to_train_data_csv)
     noises = SDP.data_frames_to_noises(offline_law_data_frames)
     
     function offline_dynamics(t::Int64, state::Array{Float64,1}, control::Array{Float64,1}, 
