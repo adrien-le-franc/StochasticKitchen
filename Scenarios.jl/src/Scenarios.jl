@@ -4,11 +4,10 @@ using CSV
 using DataFrames
 using Distributions
 using Clustering
-using ProgressMeter
+using Interpolations
 using Dates
 
-include("process.jl")
 include("utils.jl")
-include("struct.jl")
+include("generation.jl")
 
 end
