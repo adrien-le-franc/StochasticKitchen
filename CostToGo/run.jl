@@ -15,16 +15,15 @@ if args["workers"] > 1
 	addprocs(args["workers"])
 end
 
-@everywhere using Pkg
-@everywhere Pkg.activate(joinpath(@__DIR__, "../"))
 @eval @everywhere args=$args
-@everywhere include(joinpath(@__DIR__, args["model"]*".jl"))
+@everywhere include(joinpath(@__DIR__, "models", args["model"]*".jl"))
 
 if args["n_lags"] > 0
 	@everywhere args["model"] = args["model"]*"_$(args["n_lags"])"
 end
 
 if args["calibrate"]
+	println("\ncalibrate $(args["model"])\n")
 
 	if args["workers"] > 1
 
@@ -47,6 +46,7 @@ if args["calibrate"]
 end
 
 if args["simulate"]
+	println("\nsimulate $(args["model"])\n")
 
 	EMSx.simulate_sites(controller, 
 		joinpath(args["save"], args["model"]),

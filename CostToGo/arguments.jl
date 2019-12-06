@@ -20,22 +20,22 @@ function parse_commandline()
         "--metadata"
             help = "metadata.csv - site and battery parameters"     
             arg_type = String
-            default = joinpath(@__DIR__, "../../data/metadata.csv")
+            default = joinpath(@__DIR__, "../data/sample.csv")
 
         "--train"
             help = "train data folder"
             arg_type = String
-            default = joinpath(@__DIR__, "../../data/train")
+            default = joinpath(@__DIR__, "../data/train")
 
         "--test"
             help = "test data folder"
             arg_type = String
-            default = joinpath(@__DIR__, "../../data/test")
+            default = joinpath(@__DIR__, "../data/test")
 
         "--price"
             help = "price folder or .csv file"
             arg_type = String
-            default = joinpath(@__DIR__, "../../data/prices")
+            default = joinpath(@__DIR__, "../data/prices")
 
         "--calibrate"
             help = "perform model calibration"
@@ -64,9 +64,11 @@ function parse_commandline()
 
     parsed_args = parse_args(s)
 
+    println("")
     for (key, val) in parsed_args
         println("  $key  =>  $(repr(val))")
     end
+    println("")
 
     return parse_args(s)
     

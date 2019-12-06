@@ -1,4 +1,4 @@
-# developed with Julia 1.1.1
+# developed with Julia 1.3.0
 #
 # Open Loop Feedback Controller (OLFC) 
 # for EMS simulation
@@ -17,6 +17,9 @@ using JuMP, CPLEX
 using DataFrames
 using FileIO
 using CSV
+
+using MathOptInterface
+const MOI = MathOptInterface
 
 
 mutable struct Olfc <: EMSx.AbstractController
@@ -44,10 +47,11 @@ function EMSx.initialize_site_controller(controller::Olfc, site::EMSx.Site)
         discrete_noise_points)
 
     # LP model
-    model = Model(with_optimizer(CPLEX.Optimizer, CPX_PARAM_SCRIND=0))
+    model = Model(with_optimizer(CPLEX.Optimizer))
+    MOI.set(model, MOI.RawParameter("CPX_PARAM_SCRIND"), 0)
 
     horizon = 96
-    n_scenarios = 10
+    n_scenarios = args["n_scenarios"]
     battery = site.battery
 
     @variable(model, 0 <= u_c[1:horizon])

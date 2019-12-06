@@ -1,10 +1,13 @@
-# developed with Julia 1.1.1
+# developed with Julia 1.3.0
 #
 # functions to calibrate EMS control models
 
 using EMSx
 using JuMP, CPLEX
 using ProgressMeter
+
+using MathOptInterface
+const MOI = MathOptInterface
 
 
 mutable struct AnticipativeController <: EMSx.AbstractController
@@ -77,7 +80,8 @@ function initialize_anticipative_controller(controller::AnticipativeController,
 	
 	controller = AnticipativeController()
 
-	model = Model(with_optimizer(CPLEX.Optimizer, CPX_PARAM_SCRIND=0))
+	model = Model(with_optimizer(CPLEX.Optimizer))
+	MOI.set(model, MOI.RawParameter("CPX_PARAM_SCRIND"), 0)
 
 	horizon = 672
 	battery = period.site.battery
@@ -124,7 +128,7 @@ function EMSx.compute_control(controller::AnticipativeController, information::E
 end
 
 eval_sites(controller, 
-	"anticipative", 
+	"/home/StochasticKitchen/LookAhead/results/anticipative", 
 	"/home/StochasticKitchen/data/prices", 
 	"/home/EMSx.jl/data/metadata.csv", 
 	"/home/EMSx.jl/data/test")
