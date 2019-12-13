@@ -18,7 +18,7 @@ end
 @eval @everywhere args=$args
 @everywhere include(joinpath(@__DIR__, "models", args["model"]*".jl"))
 
-if args["n_lags"] > 0
+if args["model"] == "sdp_ar"
 	@everywhere args["model"] = args["model"]*"_$(args["n_lags"])"
 end
 

@@ -14,8 +14,9 @@ args = parse_commandline()
 if args["workers"] > 1
 	addprocs(args["workers"])
 	@eval @everywhere args=$args
-	@everywhere include(joinpath(@__DIR__, "models", args["model"]*".jl"))
 end
+
+@everywhere include(joinpath(@__DIR__, "models", args["model"]*".jl"))
 
 if args["model"] == "olfc"
 	args["model"] = "olfc_$(args["n_scenarios"])"
