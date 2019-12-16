@@ -160,14 +160,18 @@ function EMSx.compute_control(controller::SdpAR, information::EMSx.Information)
     end
 
     net_demand_lags = information.load[1:n_lags] - information.pv[1:n_lags]
-    net_demand_lags = SDP.normalize(net_demand_lags, controller.upper_bound, 
-        controller.lower_bound)
+    net_demand_lags = max.(0., min.(1., SDP.normalize(net_demand_lags, controller.upper_bound, 
+        controller.lower_bound)))
 
     control = compute_control(controller.model, 
         information.t, 
         [information.soc, net_demand_lags...],
         StoOpt.RandomVariable(controller.model.noises, information.t),
         controller.value_functions)
+
+    if control[1] > 1.
+        println("t $(information.t), state $([information.soc, net_demand_lags...])")
+    end
 
     return control[1]
 
