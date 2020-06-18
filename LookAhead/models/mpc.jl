@@ -66,7 +66,8 @@ end
 function EMSx.compute_control(controller::Mpc, information::EMSx.Information)
 
 	fix(controller.model[:x0], information.soc*information.battery.capacity)
-	fix.(controller.model[:w], information.forecast_load - information.forecast_pv)
+	fix.(controller.model[:w], 
+		(information.forecast_load - information.forecast_pv)[1:controller.horizon])
 
 	# set prices, padding out of test period prices with zero values
 	price = information.price

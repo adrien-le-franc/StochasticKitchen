@@ -169,10 +169,6 @@ function EMSx.compute_control(controller::SdpAR, information::EMSx.Information)
         StoOpt.RandomVariable(controller.model.noises, information.t),
         controller.value_functions)
 
-    if control[1] > 1.
-        println("t $(information.t), state $([information.soc, net_demand_lags...])")
-    end
-
     return control[1]
 
 end
