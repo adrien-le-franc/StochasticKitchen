@@ -14,9 +14,8 @@ using EMSx
 using Scenarios
 
 using JuMP, CPLEX
-using DataFrames
 using FileIO
-using CSV
+using CSV, DataFrames, CodecZlib, Mmap
 
 using MathOptInterface
 const MOI = MathOptInterface
@@ -36,7 +35,7 @@ end
 const controller = Olfc()
 
 
-function EMSx.initialize_site_controller(controller::Olfc, site::EMSx.Site)
+function EMSx.initialize_site_controller(controller::Olfc, site::EMSx.Site, prices::EMSx.Prices)
 
     controller = Olfc()
 
@@ -47,8 +46,8 @@ function EMSx.initialize_site_controller(controller::Olfc, site::EMSx.Site)
         discrete_noise_points)
 
     # LP model
-    model = Model(with_optimizer(CPLEX.Optimizer))
-    MOI.set(model, MOI.RawParameter("CPX_PARAM_SCRIND"), 0)
+    model = Model(CPLEX.Optimizer)
+    set_optimizer_attribute(model, "CPX_PARAM_SCRIND", 0)
 
     horizon = 96
     n_scenarios = args["n_scenarios"]
@@ -103,7 +102,9 @@ end
 function calibrate_scenario_generator(site::EMSx.Site, 
     controller::EMSx.AbstractController, steps::Array{Int64,1}, k::Int64)
 
-    train_data = CSV.read(site.path_to_train_data_csv)
+    train_data = CSV.File(transcode(GzipDecompressor, 
+        Mmap.mmap(site.path_to_train_data_csv))) |> DataFrame
+
     week_days_generator = Scenarios.ScenarioGenerator(Scenarios.week_days(train_data),
         steps, k)
     week_end_days_generator = Scenarios.ScenarioGenerator(Scenarios.week_end_days(train_data), 
@@ -119,9 +120,6 @@ end
 
 ## simulation specific functions
 
-function EMSx.update_price!(controller::Olfc, price::EMSx.Price)
-    return nothing
-end
 
 function EMSx.compute_control(controller::Olfc, information::EMSx.Information)
 
@@ -142,14 +140,14 @@ function EMSx.compute_control(controller::Olfc, information::EMSx.Information)
     probabilities = probabilities / sum(probabilities)
     
     # set prices, padding out of test period prices with zero values
-    price = information.price
+    price = information.prices
     price_window = information.t:min(information.t+controller.horizon-1, size(price.buy, 1))
     if length(price_window) != controller.horizon
         padding = controller.horizon - length(price_window)
-        price = EMSx.Price(price.name, vcat(price.buy[price_window], zeros(padding)), 
+        price = EMSx.Prices(price.name, vcat(price.buy[price_window], zeros(padding)), 
             vcat(price.sell[price_window], zeros(padding)))
     else
-        price = EMSx.Price(price.name, price.buy[price_window], price.sell[price_window])
+        price = EMSx.Prices(price.name, price.buy[price_window], price.sell[price_window])
     end
 
     @objective(controller.model, Min, 

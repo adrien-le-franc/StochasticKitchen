@@ -19,6 +19,11 @@ function denormalize(x::Float64, upper_bound, lower_bound)
     return x*(upper_bound - lower_bound) + lower_bound
 end
 
+function read_site_file(file::String; kw...)
+    csv = CSV.File(transcode(GzipDecompressor, Mmap.mmap(file))) |> DataFrame
+    return csv
+end
+
 
 ## Generic data parsing functions
 
@@ -32,7 +37,7 @@ function net_demand_offline_law(path_to_data_csv::String; k::Int64=10)
     :probability -> Arra{Float64,1} ; probabilities of each scalar value
     """
 
-    data = CSV.read(path_to_data_csv)
+    data = read_site_file(path_to_data_csv)
     sorted_data = parse_data_frame(data)
     offline_law_data_frames = data_to_offline_law(sorted_data, k=k)
 
@@ -102,7 +107,7 @@ end
 
 function normalized_net_demand(path_to_data_csv::String)
 
-    data = CSV.read(path_to_data_csv)
+    data = read_site_file(path_to_data_csv)
 
     df = data[:, [:timestamp]]
     net_demand = (data[!, :actual_consumption] - data[!, :actual_pv])

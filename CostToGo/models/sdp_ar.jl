@@ -21,7 +21,6 @@ using FileIO
 
 mutable struct SdpAR <: EMSx.AbstractController
    model::StoOpt.SDP
-   price::EMSx.Price
    upper_bound::Float64
    lower_bound::Float64
    forecast_model::Dict{String, Array{Float64,2}}
@@ -38,7 +37,7 @@ const du = 0.1
 const horizon = 672
 const n_lags = args["n_lags"]
 
-function EMSx.initialize_site_controller(controller::SdpAR, site::EMSx.Site)
+function EMSx.initialize_site_controller(controller::SdpAR, site::EMSx.Site, prices::EMSx.Prices)
 
     controller = SdpAR()
 
@@ -82,8 +81,7 @@ function EMSx.initialize_site_controller(controller::SdpAR, site::EMSx.Site)
         net_demand_forecast = SDP.denormalize(normalized_net_demand_forecast,
             upper_bound, lower_bound)
         imported_energy = control + net_demand_forecast
-        return (controller.price.buy[t]*max(0.,imported_energy) - 
-            controller.price.sell[t]*max(0.,-imported_energy))
+        return (prices.buy[t]*max(0.,imported_energy) - prices.sell[t]*max(0.,-imported_energy))
     end
 
     model = StoOpt.SDP(Grid([0:dx:1 for i in 1:n_lags+1]..., enumerate=true),
@@ -100,10 +98,6 @@ function EMSx.initialize_site_controller(controller::SdpAR, site::EMSx.Site)
 
    return controller
     
-end
-
-function EMSx.update_price!(controller::SdpAR, price::EMSx.Price)
-    controller.price = price
 end
 
 ## calibration specific functions
@@ -145,18 +139,17 @@ end
 
 ## simulation specific functions
 
-function load_value_functions(site_id::String, price_name::String)
+function load_value_functions(site_id::String)
     return load(joinpath(args["save"],
                 args["model"], 
                 "value_functions", 
-                site_id*".jld2"))["value_functions"][price_name]
+                site_id*".jld2"))["value_functions"]
 end
 
 function EMSx.compute_control(controller::SdpAR, information::EMSx.Information)
     
     if information.t == 1
-        controller.value_functions = load_value_functions(information.site_id, 
-                information.price.name)
+        controller.value_functions = load_value_functions(information.site_id)
     end
 
     net_demand_lags = information.load[1:n_lags] - information.pv[1:n_lags]

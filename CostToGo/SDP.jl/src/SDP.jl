@@ -1,7 +1,7 @@
 module SDP
 
 using ProgressMeter
-using Dates, CSV, DataFrames, FileIO
+using Dates, CSV, DataFrames, FileIO, CodecZlib, Mmap
 using Clustering
 using Distributed
 

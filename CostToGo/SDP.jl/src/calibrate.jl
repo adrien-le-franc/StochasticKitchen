@@ -60,21 +60,11 @@ function calibrate_sites_parallel(controller::EMSx.AbstractController,
 end
 
 function calibrate_site(controller::EMSx.AbstractController, site::EMSx.Site, 
-	prices::Array{EMSx.Price})
+	prices::EMSx.Prices)
 
-	controller = EMSx.initialize_site_controller(controller, site)
+	controller = EMSx.initialize_site_controller(controller, site, prices)
+	timer = @elapsed value_functions = compute_value_functions(controller)
 	
-	value_functions = Dict{String, Any}()
-	timer = Float64[]
-
-	for price in prices
-
-		EMSx.update_price!(controller, price)
-		timing = @elapsed value_functions[price.name] = compute_value_functions(controller)
-		push!(timer, timing)
-
-	end
-
 	save(joinpath(site.path_to_save_folder, "value_functions", site.id*".jld2"), 
 		Dict("value_functions"=>value_functions, "time"=>timer))
 
