@@ -21,11 +21,12 @@ const controller = AnticipativeController()
 
 function eval_sites(controller::EMSx.AbstractController,
 	path_to_save_folder::String, 
-	path_to_price_folder::String, 
+	path_to_price_csv_file::String, 
 	path_to_metadata_csv_file::String, 
 	path_to_test_data_folder::String)
 	
-	prices = EMSx.load_prices(path_to_price_folder)
+	EMSx.make_directory(path_to_save_folder)
+	prices = EMSx.load_prices(path_to_price_csv_file)
 	sites = EMSx.load_sites(path_to_metadata_csv_file, 
 		path_to_test_data_folder, nothing, path_to_save_folder)
 
@@ -35,11 +36,13 @@ function eval_sites(controller::EMSx.AbstractController,
 		
 	end
 
+	EMSx.group_all_simulations(sites)
+
 	return nothing
 
 end
 
-function eval_site(site::EMSx.Site, prices::Array{EMSx.Price})
+function eval_site(site::EMSx.Site, prices::EMSx.Prices)
 
 	test_data, site = EMSx.load_site_data(site)
 	periods = unique(test_data[!, :period_id])
@@ -48,9 +51,9 @@ function eval_site(site::EMSx.Site, prices::Array{EMSx.Price})
 	@showprogress for period_id in periods
 
 		test_data_period = test_data[test_data.period_id .== period_id, :]
-		period = EMSx.Period(string(period_id), test_data_period, site, EMSx.Simulation[])
-		simulate_period!(controller, period, prices)
-		append!(simulations, period.simulations)
+		period = EMSx.Period(string(period_id), test_data_period, site)
+		simulation = simulate_period(controller, period, prices)
+		push!(simulations, simulation)
 
 	end
 
@@ -60,28 +63,24 @@ function eval_site(site::EMSx.Site, prices::Array{EMSx.Price})
 
 end
 
-function simulate_period!(controller::EMSx.AbstractController, period::EMSx.Period, 
-	prices::Array{EMSx.Price})
+function simulate_period(controller::EMSx.AbstractController, period::EMSx.Period, 
+	prices::EMSx.Prices)
 
-	for price in prices
 
-		controller = initialize_anticipative_controller(controller, period, price)
-		simulation = EMSx.simulate_scenario(controller, period, price)
-		push!(period.simulations, simulation)
-
-	end
-
-	return nothing
+	controller = initialize_anticipative_controller(controller, period, prices)
+	simulation = EMSx.simulate_period(controller, period, prices)
+	
+	return simulation
 
 end
 
 function initialize_anticipative_controller(controller::AnticipativeController, 
-	period::EMSx.Period, price::EMSx.Price)
+	period::EMSx.Period, price::EMSx.Prices)
 	
 	controller = AnticipativeController()
 
-	model = Model(with_optimizer(CPLEX.Optimizer))
-	MOI.set(model, MOI.RawParameter("CPX_PARAM_SCRIND"), 0)
+	model = Model(CPLEX.Optimizer)
+    set_optimizer_attribute(model, "CPX_PARAM_SCRIND", 0)
 
 	horizon = 672
 	battery = period.site.battery
@@ -129,6 +128,6 @@ end
 
 eval_sites(controller, 
 	"/home/StochasticKitchen/LookAhead/results/anticipative", 
-	"/home/StochasticKitchen/data/prices", 
+	"/home/StochasticKitchen/data/prices/edf_prices.csv", 
 	"/home/EMSx.jl/data/metadata.csv", 
 	"/home/EMSx.jl/data/test")
