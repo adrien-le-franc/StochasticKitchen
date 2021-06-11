@@ -6,11 +6,11 @@ DIR = @__DIR__
 
 include(joinpath(DIR, "..", "functions.jl"))
 
-#set_processors(4)
+set_processors(4)
 
 include(joinpath(DIR, "optimize.jl"))
 
-const oracle = SddpOracle()
+const oracle = ParametricMultistageOracle(model)
 const projection = HyperCubeProjection(peak_power)
 step_size(k::Int64) = 1000/k
 const parameters = SubgradientMethods.Parameters(zeros(48), 100, step_size, Dates.Minute(30), 0.01)
@@ -19,7 +19,7 @@ const parameters = SubgradientMethods.Parameters(zeros(48), 100, step_size, Date
 
 output = SubgradientMethods.optimize!(oracle, projection, parameters)
 
-#set_processors(1)
+set_processors(1)
 
 # log
 log = Dict(
@@ -27,6 +27,6 @@ log = Dict(
     "f_values" => output.all_values,
     "n_steps" => output.final_iteration,
     "overall_time" => output.elapsed,
-    "average_time_per_gradient_call" => 7.65)
+    "average_time_per_gradient_call" => nothing)
 
-save("/home/StochasticKitchen/Parametric/results/sddp/gold_log_tx3.jld2", "log", log)
+save("/home/StochasticKitchen/Parametric/results/smooth/log.jld2", "log", log)

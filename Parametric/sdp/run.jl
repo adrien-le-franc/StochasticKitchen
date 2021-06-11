@@ -13,7 +13,7 @@ include(joinpath(DIR, "optimize.jl"))
 const oracle = ParametricMultistageOracle(model)
 const projection = HyperCubeProjection(peak_power)
 step_size(k::Int64) = 500/sqrt(k)
-const parameters = SubgradientMethods.Parameters(zeros(48), 10, step_size, Dates.Minute(5), 0.01)
+const parameters = SubgradientMethods.Parameters(zeros(48), 100, step_size, Dates.Minute(5), 0.01)
 
 # run optimization
 

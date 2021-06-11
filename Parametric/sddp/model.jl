@@ -6,7 +6,7 @@ using Distributed
 
 @everywhere begin 
 
-	using SDDP, Clp #, CPLEX
+	using SDDP, CPLEX
 	using ControlVariables
 	const CV = ControlVariables
 
@@ -39,7 +39,7 @@ function parametric_sddp(variable::Array{Float64,1})
 	    stages =  2*horizon,
 	    sense = :Min,
 	    lower_bound = compute_lower_bound(variable),
-	    optimizer = Clp.Optimizer,) do subproblem, node
+	    optimizer = CPLEX.Optimizer,) do subproblem, node
 
 	    # solver verbose 
 

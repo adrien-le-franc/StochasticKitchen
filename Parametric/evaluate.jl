@@ -2,18 +2,19 @@
 #
 # PV unit toy model with SDDP
 
-using SDDP, Clp #, CPLEX
+
+using SDDP, CPLEX
 using ControlVariables
 const CV = ControlVariables
-
 
 using JLD
 using Statistics
 
+include("functions.jl")
+
 # physical values
 
 include("parameters.jl")
-include("functions.jl")
 
 # noises
 
@@ -31,7 +32,7 @@ function evaluation_model(parameter::Array{Float64,1})
 	    stages =  2*horizon,
 	    sense = :Min,
 	    lower_bound = compute_lower_bound(parameter),
-	    optimizer = Clp.Optimizer,) do subproblem, node
+	    optimizer = CPLEX.Optimizer,) do subproblem, node
 
 	    # solver verbose 
 
@@ -110,19 +111,23 @@ function evaluation_model(parameter::Array{Float64,1})
 
 end
 
-output = load(joinpath(@__DIR__, "sddp", "output.jld2"))["output"]
-model = evaluation_model(output.variable)
+#initialize algorithm 
+
+log = load(joinpath(@__DIR__, "results", "smooth", "gold_log.jld2"))["log"]
+profile = log["x_opt"] 
+
+model = evaluation_model(profile)
 
 # compute value function
 
-SDDP.train(model, stopping_rules = [SDDP.BoundStalling(10, 0.1)])#, print_level = 0)
+SDDP.train(model, iteration_limit=1000)#, stopping_rules = [SDDP.BoundStalling(10, 0.1)])#, print_level = 0)
 
 # in-sample validation
 
-n_samples = 500
+n_samples = 10_000
 simulations = SDDP.simulate(model, n_samples)
 objective_values = [sum(stage[:stage_objective] for stage in sim) for sim in simulations]
 m = round(mean(objective_values), digits = 2);
 ci = round(1.96 * std(objective_values) / sqrt(n_samples), digits = 2);
-println("Confidence interval: ", m, " ± ", ci)
+println("Confidence interval: ", m, " ± ", ci, "- std :", std(objective_values))
 println("Lower bound: ", round(SDDP.calculate_bound(model), digits = 2))

@@ -3,8 +3,9 @@
 
 using SubgradientMethods
 SM = SubgradientMethods
+using ParametricMultistage
+PM = ParametricMultistage
 
-using SDDP
 using Dates
 
 
@@ -13,21 +14,29 @@ include("model.jl")
 
 # oracle
 
-struct SddpOracle <: SubgradientMethods.AbstractOracle end
+mutable struct ParametricMultistageOracle <: SubgradientMethods.AbstractOracle
+	model::ParametricMultistage.ParametricMultistageModel
+end
 
-function SubgradientMethods.call_oracle!(oracle::SddpOracle, 
+function set_variable!(oracle::ParametricMultistageOracle, variable::Array{Float64,1})
+	oracle.model.parameter = variable
+end
+
+function SubgradientMethods.call_oracle!(oracle::ParametricMultistageOracle, 
 	variable::Array{Float64,1}, k::Int64)
 
-	model = parametric_sddp(variable)
-	SDDP.train(model, time_limit=7.65, print_level=0, parallel_scheme = SDDP.Asynchronous())#, print_level=0)
-	subgradient, cost_to_go = compute_a_subgradient(variable, model)
-
+	set_variable!(oracle, variable)
+	t = @elapsed subgradient, cost_to_go = PM.parallel_compute_gradient(oracle.model, true)
+	
+	
 	if k % 1 == 0
-		#println("step $(k): $(cost_to_go) - cuts : $(length(model.most_recent_training_results.log))")
-		println(length(model.most_recent_training_results.log))
-		#println("subgradient[24]: $(subgradient[24])")
-		#println("variable[24]: $(variable[24])")
+		println("step $(k): $(cost_to_go) - time: $t")
+		#println(t)
+		#println("subgradient[24]: $(subgradient[:])")
+		#println("variable[24]: $(variable[:])")
+		#println("\n")
 	end
+	
 	
 	return cost_to_go, subgradient
 
@@ -66,7 +75,7 @@ function stop_progression(output::SM.Output)
 	end
 end
 
-function SM.stopping_test(oracle::SddpOracle, output::SM.Output,
+function SM.stopping_test(oracle::ParametricMultistageOracle, output::SM.Output,
 	parameters::SM.Parameters)
 
 	if (output.elapsed > parameters.max_time || 
