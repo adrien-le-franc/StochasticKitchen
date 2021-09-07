@@ -97,12 +97,12 @@ function parametric_sddp(variable::Array{Float64,1})
 	    if (node % 2 == 0.) # noisy node
 	    	@constraint(subproblem, lift >= delivery - parameter[node÷2].in*dt)
 	    	@constraint(subproblem, lift >= -delivery + parameter[node÷2].in*dt)
-	        @stageobjective(subproblem, -price[node÷2]*parameter[node÷2].in*dt 
+	        @stageobjective(subproblem, -price[node÷2]*delivery 
 	        	+ penalty_coefficient*price[node÷2]*lift)
 	    end
 
 	    if (node == 2*horizon) # final node
-	    	@stageobjective(subproblem, - price[node÷2]*parameter[node÷2].in*dt 
+	    	@stageobjective(subproblem, - price[node÷2]*delivery 
 	        	+ penalty_coefficient*price[node÷2]*lift - price[horizon]*soc.out)
 	    end
 

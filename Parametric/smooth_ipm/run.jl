@@ -12,6 +12,21 @@ set_processors(4)
 
 include("ipopt.jl")
 
+# model
+
+model = PM.ParametricMultistageModel(
+    states,
+    controls,
+    noises,
+    dynamics,
+    stage_cost,
+    final_cost,
+    horizon,
+    zeros(horizon),
+    zeros(2),
+    stage_cost_gradient,
+    final_cost_gradient)
+
 set_processors(1)
 
 # log
@@ -20,6 +35,7 @@ log = Dict(
     "f_values" => f_values,
     "n_steps" => n_steps,
     "overall_time" => overall_time,
-    "average_time_per_gradient_call" => nothing)
+    "average_time_per_gradient_call" => mean(output.elapsed_per_oracle_call[2:end]),
+    "params" => params)
 
 save("/home/StochasticKitchen/Parametric/results/ipopt/log.jld2", "log", log)

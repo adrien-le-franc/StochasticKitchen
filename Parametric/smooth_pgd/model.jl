@@ -20,7 +20,6 @@ using JLD
 # physical values
 
 include("../parameters.jl")
-include("../functions.jl")
 
 # noises
 
@@ -65,47 +64,46 @@ noises = clean_support(noises, 0.001)
 
 	# smoothed costs
 
-	function hubert(x::Float64, coefficient::Float64)
-		if abs(x) > coefficient
-			return abs(x) - coefficient / 2.
-		else
-			return x^2 / (2*coefficient)
-		end
+	const lambda = 2.
+
+	function cost(delivered, committed, t)
+	    return -price[t]*dt*(delivered - lambda*abs(delivered - committed))
 	end
 
 	function stage_cost(t::Int64, state::Array{Float64,1}, control::Array{Float64,1}, 
 		noise::Array{Float64,1}, parameter::Array{Float64,1})
 
 		power_production = min(max(weights[:, t]'*[state[2], 1.] + noise[1], 0.), 1.)*peak_power
-		power_delivery = power_production - control[1]*max_battery_power # in kW
+		delivered = power_production - control[1]*max_battery_power # in kW
+		price_kW = price[t]*dt
 
-		return -price[t]*dt*(parameter[t] - 
-			penalty_coefficient*hubert(power_delivery - parameter[t], mu))
+		if abs(delivered - parameter[t]) > mu*lambda*price_kW
+	        return cost(delivered, parameter[t], t) - ((lambda*price_kW)^2)*mu/2.
+	    else
+	        return -delivered*price_kW + (delivered-parameter[t])^2/(2*mu)
+	    end
 
 	end
 
-	function final_cost(state::Array{Float64,1}, parameter::Array{Float64,1}) ### ???
+	function final_cost(state::Array{Float64,1}, parameter::Array{Float64,1})
 		-price[horizon]*state[1]*max_battery_capacity 
 	end
 
 	# smoothed cost subgradients
 
-	function hubert_derivative(x::Float64, coefficient::Float64)
-		if abs(x) > coefficient
-			return sign(x)
-		else
-			return x / coefficient
-		end
-	end
-
 	function stage_cost_gradient(t::Int64, state::Array{Float64,1}, control::Array{Float64,1}, 
 		noise::Array{Float64,1}, parameter::Array{Float64,1}) 
 
 		power_production = min(max(weights[:, t]'*[state[2], 1.] + noise[1], 0.), 1.)*peak_power
-		power_delivery = power_production - control[1]*max_battery_power # in kW
-		gradient_absolute_delivery_gap = hubert_derivative(power_delivery - parameter[t], mu)
+		delivered = power_production - control[1]*max_battery_power # in kW
+		price_kW = price[t]*dt
 		gradient = zeros(horizon)
-		gradient[t] = -price[t]*dt*(1. + penalty_coefficient*gradient_absolute_delivery_gap)
+
+		if abs(delivered - parameter[t]) > mu*lambda*price_kW
+			gradient[t] = sign(parameter[t] - delivered)*lambda*price_kW
+	    else
+	    	gradient[t] = (parameter[t] - delivered)/mu
+	    end
 
 		return gradient
 
@@ -116,18 +114,3 @@ noises = clean_support(noises, 0.001)
 	end
 
 end
-
-# model
-
-model = PM.ParametricMultistageModel(
-	states,
-	controls,
-	noises,
-	dynamics,
-	stage_cost,
-	final_cost,
-	horizon,
-	zeros(horizon),
-	zeros(2),
-	stage_cost_gradient,
-	final_cost_gradient)

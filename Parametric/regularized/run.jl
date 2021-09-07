@@ -29,4 +29,4 @@ log = Dict(
     "overall_time" => output.elapsed,
     "average_time_per_gradient_call" => nothing)
 
-save("/home/StochasticKitchen/Parametric/results/smooth/log.jld2", "log", log)
+save("/home/StochasticKitchen/Parametric/results/regularized/log.jld2", "log", log)
