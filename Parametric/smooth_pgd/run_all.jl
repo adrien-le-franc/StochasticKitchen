@@ -10,6 +10,7 @@ set_processors(4)
 
 include("model.jl")
 include(joinpath(DIR, "optimize.jl"))
+using Statistics
 
 step_size(k::Int64) = 1000/k
 const projection = HyperCubeProjection(peak_power)
@@ -18,7 +19,7 @@ f(x) = prod(string.(split(string(x), ".")))
 
 function run_all()
 
-    for (dx, dg, du) in [(0.1, 0.1, 0.1)], (0.1, 0.1, 0.05), (0.1, 0.05, 0.05), (0.05, 0.05, 0.05),
+    for (dx, dg, du) in [(0.1, 0.1, 0.1), (0.1, 0.1, 0.05), (0.1, 0.05, 0.05), (0.05, 0.05, 0.05),
         (0.05, 0.05, 0.01), (0.05, 0.01, 0.01), (0.01, 0.01, 0.01)]
 
         states = PM.States(horizon, 0:dx:1., 0:dg:1.)
