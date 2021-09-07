@@ -23,7 +23,7 @@ function SubgradientMethods.call_oracle!(oracle::SddpOracle,
 	variable::Array{Float64,1}, k::Int64)
 
 	model = parametric_sddp(variable)
-	SDDP.train(model, iteration_limit=oracle.n_cuts, parallel_scheme = SDDP.Asynchronous())#, print_level=0)
+	SDDP.train(model, iteration_limit=oracle.n_cuts, parallel_scheme = SDDP.Asynchronous(), print_level=0)
 	subgradient, cost_to_go = compute_a_subgradient(variable, model)
 
 	if k % 10 == 0

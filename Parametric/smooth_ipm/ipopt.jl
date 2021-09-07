@@ -81,6 +81,9 @@ function optimize(model::PM.ParametricMultistageModel)
     addOption(prob, "acceptable_compl_inf_tol", 1.)
     addOption(prob, "acceptable_obj_change_tol", 0.005)
     addOption(prob, "max_iter", 100)
+
+    # verbose
+    addOption(prob, "print_level", 0)   
     
     # callback
 
