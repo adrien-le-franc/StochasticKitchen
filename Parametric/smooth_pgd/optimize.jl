@@ -2,21 +2,12 @@
 #
 # Gradient descent method
 
-
-DIR = @__DIR__
-include(joinpath(DIR, "..", "functions.jl"))
-
-
 using SubgradientMethods
 SM = SubgradientMethods
 using ParametricMultistage
 PM = ParametricMultistage
 
 using Dates
-
-
-include("model.jl")
-
 
 # oracle
 

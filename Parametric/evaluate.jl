@@ -2,15 +2,20 @@
 #
 # PV unit toy model with SDDP
 
-
 using SDDP, CPLEX
-using ControlVariables
-const CV = ControlVariables
-
 using JLD
 using Statistics
 
 include("functions.jl")
+set_processors(4)
+
+@everywhere begin 
+
+	using SDDP, CPLEX
+	using ControlVariables
+	const CV = ControlVariables
+
+end
 
 # physical values
 
@@ -21,6 +26,9 @@ include("parameters.jl")
 pv = load(joinpath(@__DIR__, "data", "ausgrid.jld"))["data"]*peak_power
 weights, noises = CV.fit_linear_noise_model(collect(pv'), 10)
 noises = clean_support(noises, 1.)
+
+@eval @everywhere weights = $weights
+@eval @everywhere noises = $noises
 
 # model
 
@@ -86,12 +94,12 @@ function evaluation_model(parameter::Array{Float64,1})
 	    if (node % 2 == 0.) # noisy node
 	    	@constraint(subproblem, lift >= delivery - parameter[node÷2]*dt)
 	    	@constraint(subproblem, lift >= -delivery + parameter[node÷2]*dt)
-	        @stageobjective(subproblem, -price[node÷2]*parameter[node÷2]*dt 
+	        @stageobjective(subproblem, -price[node÷2]*delivery 
 	        	+ penalty_coefficient*price[node÷2]*lift)
 	    end
 
 	    if (node == 2*horizon) # final node
-	    	@stageobjective(subproblem, - price[node÷2]*parameter[node÷2]*dt 
+	    	@stageobjective(subproblem, - price[node÷2]*delivery 
 	        	+ penalty_coefficient*price[node÷2]*lift - price[horizon]*soc.out)
 	    end
 
@@ -111,23 +119,38 @@ function evaluation_model(parameter::Array{Float64,1})
 
 end
 
-#initialize algorithm 
+function evaluate(profile::Array{Float64,1})
 
-log = load(joinpath(@__DIR__, "results", "smooth", "gold_log.jld2"))["log"]
-profile = log["x_opt"] 
+	model = evaluation_model(profile)
+	SDDP.train(model, iteration_limit=100, parallel_scheme = SDDP.Asynchronous())
+	n_samples = 10_000
+	simulations = SDDP.simulate(model, n_samples; parallel_scheme = SDDP.Asynchronous())
+	objective_values = [sum(stage[:stage_objective] for stage in sim) for sim in simulations]
+	ub = round(mean(objective_values), digits = 2);
+	lb = round(SDDP.calculate_bound(model), digits = 2)
 
-model = evaluation_model(profile)
+	println("Simulation: ", ub, "- std :", std(objective_values))
+	println("Lower bound: ", lb)
 
-# compute value function
+	return ub, lb
 
-SDDP.train(model, iteration_limit=1000)#, stopping_rules = [SDDP.BoundStalling(10, 0.1)])#, print_level = 0)
+end
 
-# in-sample validation
+function process(path::String)
 
-n_samples = 10_000
-simulations = SDDP.simulate(model, n_samples)
-objective_values = [sum(stage[:stage_objective] for stage in sim) for sim in simulations]
-m = round(mean(objective_values), digits = 2);
-ci = round(1.96 * std(objective_values) / sqrt(n_samples), digits = 2);
-println("Confidence interval: ", m, " ± ", ci, "- std :", std(objective_values))
-println("Lower bound: ", round(SDDP.calculate_bound(model), digits = 2))
+	for file in readdir(path)
+
+		log = load(joinpath(path, file))["log"]
+		p_opt = log["x_opt"] 
+		ub, lb = evaluate(p_opt)
+		log["ub"] = ub
+		log["lb"] = lb
+		save(joinpath(path, file), "log", log)
+
+	end
+
+end
+
+process(joinpath(@__DIR__, "results", "sddp_psm"))
+
+set_processors(1)
